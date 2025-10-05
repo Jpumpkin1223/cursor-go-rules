@@ -1,0 +1,425 @@
+---
+alwaysApply: true
+---
+
+# Go Backend Development - Popular Libraries & Frameworks
+
+This guide covers widely-used Go libraries and frameworks for backend development. Choose based on project requirements and team preferences.
+
+## Web Frameworks
+
+### Gin (Most Popular)
+- **Use case**: High-performance REST APIs, microservices
+- **Pros**: Fast, extensive middleware, good documentation, large community
+- **Cons**: Less idiomatic Go, framework lock-in
+```go
+import "github.com/gin-gonic/gin"
+
+r := gin.Default()
+r.GET("/users/:id", func(c *gin.Context) {
+    id := c.Param("id")
+    c.JSON(200, gin.H{"id": id})
+})
+```
+
+### Echo
+- **Use case**: REST APIs, similar to Gin but more lightweight
+- **Pros**: Fast, minimal, good middleware support
+- **Cons**: Smaller community than Gin
+```go
+import "github.com/labstack/echo/v4"
+
+e := echo.New()
+e.GET("/users/:id", func(c echo.Context) error {
+    return c.JSON(200, map[string]string{"id": c.Param("id")})
+})
+```
+
+### Fiber (Express-like)
+- **Use case**: High-performance APIs, Express.js developers
+- **Pros**: Very fast (fasthttp), Express-like API
+- **Cons**: Not using net/http (compatibility issues), less idiomatic
+```go
+import "github.com/gofiber/fiber/v2"
+
+app := fiber.New()
+app.Get("/users/:id", func(c *fiber.Ctx) error {
+    return c.JSON(fiber.Map{"id": c.Params("id")})
+})
+```
+
+### Chi
+- **Use case**: Idiomatic Go, standard library compatible
+- **Pros**: Lightweight, net/http compatible, composable
+- **Cons**: Less features out-of-box than Gin
+```go
+import "github.com/go-chi/chi/v5"
+
+r := chi.NewRouter()
+r.Get("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+    id := chi.URLParam(r, "id")
+})
+```
+
+### Gorilla Mux (Traditional)
+- **Use case**: Standard library enhancement
+- **Pros**: Mature, net/http compatible, simple
+- **Cons**: Less active development, slower than modern alternatives
+```go
+import "github.com/gorilla/mux"
+
+r := mux.NewRouter()
+r.HandleFunc("/users/{id}", handler).Methods("GET")
+```
+
+## Database & ORM
+
+### GORM (Most Popular ORM)
+- **Use case**: Traditional ORM approach, rapid development
+- **Pros**: Feature-rich, auto-migration, associations
+- **Cons**: Magic behavior, performance overhead, harder to debug
+```go
+import "gorm.io/gorm"
+import "gorm.io/driver/postgres"
+
+db, _ := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+db.AutoMigrate(&User{})
+db.Create(&user)
+db.First(&user, 1)
+```
+
+### sqlx (Lightweight)
+- **Use case**: SQL-first approach, performance-critical apps
+- **Pros**: Minimal overhead, named parameters, struct scanning
+- **Cons**: Manual SQL, no auto-migration
+```go
+import "github.com/jmoiron/sqlx"
+
+db := sqlx.Connect("postgres", dsn)
+db.Get(&user, "SELECT * FROM users WHERE id=$1", id)
+db.Select(&users, "SELECT * FROM users")
+```
+
+### sqlc (Code Generation)
+- **Use case**: Type-safe SQL, compile-time verification
+- **Pros**: No runtime overhead, type-safe, SQL-first
+- **Cons**: Build step required, learning curve
+```sql
+-- queries.sql
+-- name: GetUser :one
+SELECT * FROM users WHERE id = $1;
+```
+```go
+// Generated code
+user, err := queries.GetUser(ctx, id)
+```
+
+### Ent (Facebook's ORM)
+- **Use case**: Graph-based data modeling, complex relationships
+- **Pros**: Type-safe, code generation, powerful queries
+- **Cons**: Steep learning curve, opinionated
+```go
+import "entgo.io/ent"
+
+client, _ := ent.Open("postgres", dsn)
+user, _ := client.User.Create().SetName("John").Save(ctx)
+```
+
+### pgx (PostgreSQL Native)
+- **Use case**: PostgreSQL-specific, high performance
+- **Pros**: Best PostgreSQL support, fast, prepared statements
+- **Cons**: PostgreSQL only
+```go
+import "github.com/jackc/pgx/v5/pgxpool"
+
+pool, _ := pgxpool.New(ctx, dsn)
+row := pool.QueryRow(ctx, "SELECT * FROM users WHERE id=$1", id)
+```
+
+## Validation
+
+### validator (Most Popular)
+- **Use case**: Struct validation with tags
+```go
+import "github.com/go-playground/validator/v10"
+
+type User struct {
+    Email string `validate:"required,email"`
+    Age   int    `validate:"gte=0,lte=130"`
+}
+
+validate := validator.New()
+err := validate.Struct(user)
+```
+
+### ozzo-validation
+- **Use case**: Code-based validation (no tags)
+```go
+import validation "github.com/go-ozzo/ozzo-validation/v4"
+
+err := validation.ValidateStruct(&user,
+    validation.Field(&user.Email, validation.Required, is.Email),
+)
+```
+
+## Configuration
+
+### Viper (Most Popular)
+- **Use case**: Multi-source config (env, file, remote)
+```go
+import "github.com/spf13/viper"
+
+viper.SetConfigName("config")
+viper.AddConfigPath(".")
+viper.AutomaticEnv()
+viper.ReadInConfig()
+port := viper.GetInt("server.port")
+```
+
+### envconfig
+- **Use case**: Simple environment variable binding
+```go
+import "github.com/kelseyhightower/envconfig"
+
+type Config struct {
+    Port int `envconfig:"PORT" default:"8080"`
+}
+
+var cfg Config
+envconfig.Process("", &cfg)
+```
+
+## Logging
+
+### zerolog (High Performance)
+- **Use case**: Performance-critical, structured logging
+```go
+import "github.com/rs/zerolog/log"
+
+log.Info().
+    Str("user_id", id).
+    Int("status", 200).
+    Msg("Request completed")
+```
+
+### zap (Uber's Logger)
+- **Use case**: Structured logging, high performance
+```go
+import "go.uber.org/zap"
+
+logger, _ := zap.NewProduction()
+logger.Info("Request completed",
+    zap.String("user_id", id),
+    zap.Int("status", 200),
+)
+```
+
+### logrus (Traditional)
+- **Use case**: Structured logging, backwards compatible
+```go
+import "github.com/sirupsen/logrus"
+
+logrus.WithFields(logrus.Fields{
+    "user_id": id,
+    "status": 200,
+}).Info("Request completed")
+```
+
+## Authentication & Security
+
+### jwt-go / golang-jwt
+- **Use case**: JWT token generation/validation
+```go
+import "github.com/golang-jwt/jwt/v5"
+
+token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+tokenString, _ := token.SignedString([]byte(secret))
+```
+
+### casbin
+- **Use case**: Authorization, RBAC, ABAC
+```go
+import "github.com/casbin/casbin/v2"
+
+e, _ := casbin.NewEnforcer("model.conf", "policy.csv")
+allowed, _ := e.Enforce("alice", "data1", "read")
+```
+
+### bcrypt
+- **Use case**: Password hashing
+```go
+import "golang.org/x/crypto/bcrypt"
+
+hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+err := bcrypt.CompareHashAndPassword(hash, []byte(password))
+```
+
+## HTTP Client
+
+### resty
+- **Use case**: Simplified HTTP client
+```go
+import "github.com/go-resty/resty/v2"
+
+client := resty.New()
+resp, _ := client.R().
+    SetHeader("Accept", "application/json").
+    Get("https://api.example.com/users")
+```
+
+### req
+- **Use case**: Modern HTTP client, better DX
+```go
+import "github.com/imroc/req/v3"
+
+client := req.C()
+resp, _ := client.R().Get("https://api.example.com/users")
+```
+
+## Testing
+
+### testify (Most Popular)
+- **Use case**: Assertions and mocking
+```go
+import "github.com/stretchr/testify/assert"
+import "github.com/stretchr/testify/mock"
+
+assert.Equal(t, expected, actual)
+assert.NoError(t, err)
+```
+
+### gomock
+- **Use case**: Interface mocking (official)
+```go
+import "go.uber.org/mock/gomock"
+
+ctrl := gomock.NewController(t)
+mockRepo := NewMockRepository(ctrl)
+mockRepo.EXPECT().GetUser(1).Return(user, nil)
+```
+
+### httptest (Standard Library)
+- **Use case**: HTTP handler testing
+```go
+import "net/http/httptest"
+
+req := httptest.NewRequest("GET", "/users/1", nil)
+w := httptest.NewRecorder()
+handler(w, req)
+```
+
+## Caching
+
+### go-redis
+- **Use case**: Redis client
+```go
+import "github.com/redis/go-redis/v9"
+
+rdb := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
+rdb.Set(ctx, "key", "value", 0)
+val, _ := rdb.Get(ctx, "key").Result()
+```
+
+### ristretto
+- **Use case**: In-memory cache (high performance)
+```go
+import "github.com/dgraph-io/ristretto"
+
+cache, _ := ristretto.NewCache(&ristretto.Config{
+    NumCounters: 1e7,
+    MaxCost:     1 << 30,
+    BufferItems: 64,
+})
+cache.Set("key", "value", 1)
+```
+
+## Message Queue
+
+### amqp (RabbitMQ)
+```go
+import "github.com/rabbitmq/amqp091-go"
+
+conn, _ := amqp.Dial("amqp://guest:guest@localhost:5672/")
+ch, _ := conn.Channel()
+```
+
+### sarama (Kafka)
+```go
+import "github.com/IBM/sarama"
+
+producer, _ := sarama.NewSyncProducer([]string{"localhost:9092"}, nil)
+producer.SendMessage(&sarama.ProducerMessage{
+    Topic: "topic",
+    Value: sarama.StringEncoder("message"),
+})
+```
+
+## Utilities
+
+### lo (Lodash for Go)
+- **Use case**: Functional programming utilities
+```go
+import "github.com/samber/lo"
+
+result := lo.Map(users, func(u User, _ int) string { return u.Name })
+filtered := lo.Filter(users, func(u User, _ int) bool { return u.Age > 18 })
+```
+
+### copier
+- **Use case**: Struct copying/mapping
+```go
+import "github.com/jinzhu/copier"
+
+copier.Copy(&dest, &src)
+```
+
+### uuid
+- **Use case**: UUID generation
+```go
+import "github.com/google/uuid"
+
+id := uuid.New()
+parsed, _ := uuid.Parse("string-uuid")
+```
+
+## Recommendations by Use Case
+
+### Simple REST API (Standard Library Approach)
+- net/http (Go 1.22+ ServeMux)
+- sqlx or pgx
+- validator
+- envconfig
+- log/slog (standard library)
+
+### Production REST API (Balanced)
+- Chi or Gin
+- sqlc or GORM
+- validator
+- Viper
+- zerolog or zap
+- testify
+
+### High-Performance Microservice
+- Fiber or Gin
+- pgx with connection pooling
+- validator
+- zerolog
+- ristretto (caching)
+- go-redis
+
+### Enterprise Application
+- Chi or Echo
+- Ent or GORM
+- validator
+- Viper
+- zap
+- casbin (authorization)
+- testify + gomock
+
+## General Guidelines
+- Start simple: prefer standard library when possible
+- Add libraries as needs grow, not preemptively
+- Consider maintenance burden and community activity
+- Evaluate performance requirements before choosing
+- Check license compatibility with your project
+- Prefer idiomatic Go libraries over ports from other languages

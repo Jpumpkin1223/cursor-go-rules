@@ -13,6 +13,15 @@ Always use the latest stable version of Go (1.22 or newer) and be familiar with 
 - Be concise in explanations, but provide brief comments for complex logic or Go-specific idioms.
 - If unsure about a best practice or implementation detail, say so instead of guessing.
 
+## Architecture & Structure
+- Prefer monolith-first; extract to microservices only when scale, team ownership, or independent deployability clearly benefits.
+- Favor Clean/Hexagonal (Ports & Adapters) for medium-to-large services; Layered for small/simple services.
+- Use package-by-feature (domain-first) layout; avoid over-separating by technical layers at top-level.
+- Define interfaces only at boundaries (e.g., persistence, external APIs); use concrete types internally.
+- Wire dependencies explicitly in `main` (no DI frameworks); keep constructors simple and explicit.
+- Maintain clear boundaries: handlers (transport) → services/use-cases (domain rules) → repositories/adapters (infrastructure).
+- Apply DDD tactical patterns only when domain complexity justifies them; avoid premature CQRS/Event Sourcing.
+
 ## Routing & HTTP (Go 1.22+ ServeMux)
 - Use http.NewServeMux() with Go 1.22+ enhanced routing features:
   - Method-based routing: `GET /users/{id}`, `POST /users`, `DELETE /users/{id}`
@@ -20,6 +29,7 @@ Always use the latest stable version of Go (1.22 or newer) and be familiar with 
   - Automatic 405 Method Not Allowed responses
 - Use proper handler signatures: `func(w http.ResponseWriter, r *http.Request)`
 - Extract path parameters: `id := r.PathValue("id")`
+- Keep handlers thin; delegate business logic to services. Avoid DB calls directly in handlers.
 
 ## Error Handling & Responses
 - Use appropriate HTTP status codes (200, 201, 400, 404, 500, etc.)
@@ -32,6 +42,7 @@ Always use the latest stable version of Go (1.22 or newer) and be familiar with 
   ```
 - Use custom error types when beneficial
 - Always handle errors explicitly, never ignore them
+- Wrap errors with context using `fmt.Errorf("%w", err)`; avoid excessive sentinel errors.
 
 ## Request/Response Handling
 - Validate all input data before processing
@@ -53,11 +64,13 @@ Always use the latest stable version of Go (1.22 or newer) and be familiar with 
       IdleTimeout:  60 * time.Second,
   }
   ```
+- Propagate context to downstream calls (DB, HTTP clients) and honor deadlines.
 
 ## Logging
 - Use `log/slog` package (Go 1.21+) for structured logging
 - Include request ID, method, path, status code, and duration in logs
 - Use appropriate log levels: Debug, Info, Warn, Error
+- Do not log sensitive data (tokens, passwords, PII).
 
 ## Middleware
 - Implement middleware as func(http.Handler) http.Handler
@@ -82,21 +95,34 @@ Always use the latest stable version of Go (1.22 or newer) and be familiar with 
 - Avoid blocking operations in handlers
 - Use connection pooling for databases
 - Consider using sync.Pool for frequently allocated objects
+- Profile with pprof; expose basic metrics (expvar) when appropriate.
 
 ## Testing
 - Write table-driven tests using Go's testing package
 - Use httptest.NewRecorder() and httptest.NewRequest() for handler testing
 - Test both success and error cases
 - Aim for high test coverage of critical paths
+- Prefer integration tests around adapters (DB, external APIs) with ephemeral or rollback strategies.
 
 ## Project Structure (for larger projects)
 ```
-/cmd/api        - Application entry point
-/internal       - Private application code
-  /handlers     - HTTP handlers
-  /middleware   - HTTP middleware
-  /models       - Data models
-  /services     - Business logic
+/cmd/api                - Application entry point (wiring)
+/internal               - Private application code
+  /platform             - Cross-cutting adapters/utilities (db, config, log, middleware)
+    /config
+    /log
+    /db
+    /httpclient
+  /<feature>            - Feature/domain-oriented packages
+    /http               - Transport: handlers, routing, DTOs
+    /service            - Use-cases/business logic
+    /repo               - Persistence adapters (DB/cache)
+    model.go            - Domain entities and domain-specific errors
+/api                    - OpenAPI specs
+/migrations             - Database migrations
+/configs                - App config templates
+/scripts                - Dev/ops scripts
+/docs                   - Additional documentation
 ```
 
 Always prioritize security, scalability, and maintainability. Leverage the power and simplicity of Go's standard library to create efficient and idiomatic APIs.
