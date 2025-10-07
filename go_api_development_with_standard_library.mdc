@@ -104,6 +104,19 @@ Always use the latest stable version of Go (1.22 or newer) and be familiar with 
 - Aim for high test coverage of critical paths
 - Prefer integration tests around adapters (DB, external APIs) with ephemeral or rollback strategies.
 
+## Database
+- Use appropriate database drivers (e.g., `github.com/go-sql-driver/mysql` for MySQL)
+- Use `database/sql` package with connection pooling
+- Store database credentials in `.env` file and load with `github.com/joho/godotenv`
+- Keep schema files organized in `/db` directory:
+  ```
+  /db
+    schema.sql          - Initial database schema
+    /migrations         - Future migration files
+  ```
+- Never commit sensitive files (`.env`, `.my.cnf`) to version control
+- Provide example files (`.env.example`, `.my.cnf.example`) for team setup
+
 ## Project Structure (for larger projects)
 ```
 /cmd/api                - Application entry point (wiring)
@@ -119,7 +132,9 @@ Always use the latest stable version of Go (1.22 or newer) and be familiar with 
     /repo               - Persistence adapters (DB/cache)
     model.go            - Domain entities and domain-specific errors
 /api                    - OpenAPI specs
-/migrations             - Database migrations
+/db                     - Database schema and migrations
+  schema.sql            - Initial schema
+  /migrations           - Migration files
 /configs                - App config templates
 /scripts                - Dev/ops scripts
 /docs                   - Additional documentation
